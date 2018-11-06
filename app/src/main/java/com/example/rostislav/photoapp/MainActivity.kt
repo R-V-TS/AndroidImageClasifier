@@ -14,10 +14,10 @@ import org.tensorflow.contrib.android.TensorFlowInferenceInterface
 
 class MainActivity : AppCompatActivity() {
 
-    private var array: DoubleArray? = null
+    var imgManipulator: ImageManipulator? = null
+    private var array: IntArray? = null
     private var photoBitmap: Bitmap? = null
     private val coff = mutableListOf<Double>()
-    private var tensorflowInterface: TensorFlowInferenceInterface? = null
 
     private val bitmaps = arrayOf("image.bmp", "moon.bmp", "trees.bmp")
     private var fileNumber = 0
@@ -35,19 +35,18 @@ class MainActivity : AppCompatActivity() {
             else
             {
                 textView.text = "Coefficient calculating..... Please wait"
-                val k = findCoefficient(array!!, photoBitmap!!.height, photoBitmap!!.width).split(" ")
-                for(i in 0..k.size-2)
-                    coff.add(k[i].toDouble())
-                var str: String = " "
-                for(i in 0..3)
-                    str += "freq $i: ${coff[i*4]} ${coff[i*4+1]} ${coff[i*4+2]} ${coff[i*4+3]} \n"
+                val str = imgManipulator?.calcCoff(array!!, photoBitmap!!.height, photoBitmap!!.width)
                 textView.text = str
             }
         }
         button_predict.setOnClickListener {
-            tensorflowInterface = TensorFlowInferenceInterface(assets, "tensorflow_lite_MLP_self.pb")
-            val out = predicter()
-            textView.text = out.toString()
+            val input = imgManipulator?.image_coff
+            val tensorFlowInferenceInterface = TensorFlowInferenceInterface(assets, "tensorflow_lite_MLP_self.pb")
+            tensorFlowInferenceInterface.feed("dense_input/Tanh", input, 1, 16)
+            tensorFlowInferenceInterface.run(arrayOf("dense_output/BiasAdd"))
+            val output = floatArrayOf(-1f)
+            tensorFlowInferenceInterface.fetch("dense_output/BiasAdd", output)
+            textView.text = output[0].toString()
         }
     }
 
@@ -81,40 +80,8 @@ class MainActivity : AppCompatActivity() {
         photoBitmap = BitmapFactory.decodeStream(inStream)
 
         //val ans = findKoff()
-        val imgManipulator = ImageManipulator(photoBitmap!!)
-        array = imgManipulator.transformImageToArray()
-    }
-
-    private fun predicter(): Double {
-        val output: FloatArray = FloatArray(1)
-
-
-
-        if(tensorflowInterface != null)
-        {
-            var inp = mutableListOf<Double>()
-            for(i in 0..15)
-                inp.add(mapminmax(coff[i], i))
-            val input = inp.toDoubleArray()
-            with(tensorflowInterface!!)
-            {
-                feed("dense_input/Tanh", input, 1.toLong(), input.size.toLong())
-                run(arrayOf("dense_output/BiasAdd"))
-                fetch("dense_output/BiasAdd", output)
-            }
-        }
-        return mapminmax_back(output[0].toDouble(), 16)
-    }
-
-
-    external fun findCoefficient(image: DoubleArray, sizeX: Int, sizeY: Int): String
-
-    companion object {
-
-        // Used to load the 'native-lib' library on application startup.
-        init {
-            System.loadLibrary("native-lib")
-        }
+        imgManipulator = ImageManipulator(photoBitmap!!)
+        array = imgManipulator?.transformImageToArray()
     }
 }
 

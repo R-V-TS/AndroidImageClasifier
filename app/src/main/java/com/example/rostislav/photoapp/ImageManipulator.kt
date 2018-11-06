@@ -1,46 +1,41 @@
 package com.example.rostislav.photoapp
 
 import android.graphics.Bitmap
+import android.provider.ContactsContract
 
 class ImageManipulator(val image: Bitmap)
 {
-    private var yMatrix: Array<DoubleArray>? = null
-    fun getPixelRGB(x: Int, y: Int): IntArray
+    val image_coff = floatArrayOf(0f,0f,0f,0f,0f,0f,0f,0f,0f,0f,0f,0f,0f,0f,0f,0f)
+    fun transformImageToArray(): IntArray
     {
-        val color = image.getPixel(x, y)
-        val arrayRGB = mutableListOf(0,0,0)
-        arrayRGB[0] = color shr 16 and 0xff
-        arrayRGB[1] = color shr 8 and 0xff
-        arrayRGB[2] = color and 0xff
-        return arrayRGB.toIntArray()
+        var arrayImg = mutableListOf<Int>()
+        for(i in 0..image.height-1)
+            for(j in 0..image.width-1)
+                arrayImg.add(image.getPixel(i,j))
+        return arrayImg.toIntArray()
     }
 
-    fun getYMatrix(): Array<DoubleArray>{
-        val matrix = mutableListOf<DoubleArray>()
-        lateinit var rgb: IntArray
-        for(i in 0..image.height-1)
-        {
-            val array = mutableListOf<Double>()
-            for(j in 0..image.width-1)
-            {
-                rgb = getPixelRGB(j, i)
-                array.add((0.299*rgb[0])+(0.587*rgb[1]+(0.114*rgb[2])))
-            }
-            matrix.add(array.toDoubleArray())
+    fun calcCoff(array: IntArray, height: Int, width: Int): String
+    {
+        val k = findCoefficient(array, height, width).split(" ")
+        var str: String = " "
+        for(i in 0..3) {
+            image_coff[i * 4] = k[i * 4].toFloat()
+            image_coff[i*4 + 1] = k[i*4 + 1].toFloat()
+            image_coff[i*4 + 2] = k[i*4 + 2].toFloat()
+            image_coff[i*4 + 3] = k[i*4 + 3].toFloat()
+            str += "freq $i: ${k[i * 4]} ${k[i * 4 + 1]} ${k[i * 4 + 2]} ${k[i * 4 + 3]} \n"
         }
-        yMatrix = matrix.toTypedArray()
-        return yMatrix!!
+        return str
     }
 
-    fun transformImageToArray(): DoubleArray
-    {
-        if(yMatrix == null)
-            getYMatrix()
+    external fun findCoefficient(image: IntArray, sizeX: Int, sizeY: Int): String
 
-        var arrayImg = mutableListOf<Double>()
-        for(i in 0..image.height-1)
-            for(j in 0..image.width-1)
-                arrayImg.add(yMatrix!![i][j])
-        return arrayImg.toDoubleArray()
+    companion object {
+
+        // Used to load the 'native-lib' library on application startup.
+        init {
+            System.loadLibrary("native-lib")
+        }
     }
 }
